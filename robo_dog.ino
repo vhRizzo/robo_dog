@@ -2,17 +2,14 @@
   This is an example for our Adafruit 16-channel PWM & Servo driver
   Servo test - this will drive 8 servos, one after the other on the
   first 8 pins of the PCA9685
-
   Pick one up today in the adafruit shop!
   ------> http://www.adafruit.com/products/815
   
   These drivers use I2C to communicate, 2 pins are required to  
   interface.
-
   Adafruit invests time and resources providing this open source code, 
   please support Adafruit and open-source hardware by purchasing 
   products from Adafruit!
-
   Written by Limor Fried/Ladyada for Adafruit Industries.  
   BSD license, all text above must be included in any redistribution
  ****************************************************/
@@ -34,7 +31,7 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 #define SERVOMIN  90 // This is the 'minimum' pulse length count (out of 4096)
 #define SERVOMAX  500 // This is the 'maximum' pulse length count (out of 4096)
 #define SERVO_FREQ 50 // Analog servos run at ~50 Hz updates
-#define SERVO     2
+#define SERVO     5
 
 // our servo # counter
 uint8_t servonum = 0;
@@ -65,7 +62,12 @@ void setup() {
 
   delay(10);
 
-  pwm.setPWM(SERVO, 0, SERVOMIN);
+  pwm.setPWM(0, 0, (SERVOMAX-SERVOMIN)/2);
+  pwm.setPWM(1, 0, (SERVOMAX-SERVOMIN)/2);
+  pwm.setPWM(2, 0, (SERVOMAX-SERVOMIN)/2);
+  pwm.setPWM(3, 0, (SERVOMAX-SERVOMIN)/2);
+  pwm.setPWM(4, 0, (SERVOMAX-SERVOMIN)/2);
+  pwm.setPWM(5, 0, (SERVOMAX-SERVOMIN)/2);
 }
 
 // You can use this function if you'd like to set the pulse length in seconds
@@ -89,16 +91,24 @@ void loop() {
 //  Serial.println(servonum);
 //  pwm.setPWM(servonum, 0, 2048);
 
-  for(int i = SERVOMIN; i <= SERVOMAX; i++) {
-    pwm.setPWM(SERVO, 0, i);
-    if (i == SERVOMIN)
-      delay(1000);
-    if (i == SERVOMAX)
-      delay(1000);
-    delay(7);
-  }
-//
-//
+//  for(int i = SERVOMIN; i <= SERVOMAX; i++) {
+//    pwm.setPWM(SERVO, 0, i);
+//    if (i == SERVOMIN)
+//      delay(1000);
+//    if (i == SERVOMAX)
+//      delay(1000);
+//    delay(7);
+//  }
+//  for(int i = SERVOMAX; i >= SERVOMIN; i--) {
+//    pwm.setPWM(SERVO, 0, i);
+//    if (i == SERVOMIN)
+//      delay(1000);
+//    if (i == SERVOMAX)
+//      delay(1000);
+//    delay(7);
+//  }
+
+
 //  servonum++;
 //  if (servonum > 5) servonum = 0; // Testing the first 8 servo channels
 }
