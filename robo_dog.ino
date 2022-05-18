@@ -1,100 +1,27 @@
-/***************************************************
-  This is an example for our Adafruit 16-channel PWM & Servo driver
-  Servo test - this will drive 8 servos, one after the other on the
-  first 8 pins of the PCA9685
-  Pick one up today in the adafruit shop!
-  ------> http://www.adafruit.com/products/815
-  These drivers use I2C to communicate, 2 pins are required to
-  interface.
-  Adafruit invests time and resources providing this open source code,
-  please support Adafruit and open-source hardware by purchasing
-  products from Adafruit!
-  Written by Limor Fried/Ladyada for Adafruit Industries.
-  BSD license, all text above must be included in any redistribution
- ****************************************************/
-
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
 
-// called this way, it uses the default address 0x40
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
-// you can also call it with a different address you want
-//Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x41);
-// you can also call it with a different address and I2C interface
-//Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40, Wire);
 
-// Depending on your servo make, the pulse width min and max may vary, you
-// want these to be as small/large as possible without hitting the hard stop
-// for max range. You'll have to tweak them as necessary to match the servos you
-// have!
-#define SERVOMIN  150 // This is the 'minimum' pulse length count (out of 4096)
-#define SERVOMAX  600 // This is the 'maximum' pulse length count (out of 4096)
-#define USMIN  600 // This is the rounded 'minimum' microsecond length based on the minimum pulse of 150
-#define USMAX  2400 // This is the rounded 'maximum' microsecond length based on the maximum pulse of 600
-#define SERVO_FREQ 50 // Analog servos run at ~50 Hz updates
+#define SERVOMIN  150
+#define SERVOMAX  600
+#define USMIN  600
+#define USMAX  2400
+#define SERVO_FREQ 50
 
-// our servo # counter
 uint8_t servonum = 15;
+
+int position_history[12] = { 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500 };
 
 void setup() {
   Serial.begin(9600);
   Serial.println("8 channel Servo test!");
 
   pwm.begin();
-  /*
-     In theory the internal oscillator (clock) is 25MHz but it really isn't
-     that precise. You can 'calibrate' this by tweaking this number until
-     you get the PWM update frequency you're expecting!
-     The int.osc. for the PCA9685 chip is a range between about 23-27MHz and
-     is used for calculating things like writeMicroseconds()
-     Analog servos run at ~50 Hz updates, It is importaint to use an
-     oscilloscope in setting the int.osc frequency for the I2C PCA9685 chip.
-     1) Attach the oscilloscope to one of the PWM signal pins and ground on
-        the I2C PCA9685 chip you are setting the value for.
-     2) Adjust setOscillatorFrequency() until the PWM update frequency is the
-        expected value (50Hz for most ESCs)
-     Setting the value here is specific to each individual I2C PCA9685 chip and
-     affects the calculations for the PWM update frequency.
-     Failure to correctly set the int.osc value will cause unexpected PWM results
-  */
+
   pwm.setOscillatorFrequency(25200000);
-  pwm.setPWMFreq(SERVO_FREQ);  // Analog servos run at ~50 Hz updates
+  pwm.setPWMFreq(SERVO_FREQ);
 
-  delay(10);
-}
-
-// You can use this function if you'd like to set the pulse length in seconds
-// e.g. setServoPulse(0, 0.001) is a ~1 millisecond pulse width. It's not precise!
-void setServoPulse(uint8_t n, double pulse) {
-  double pulselength;
-
-  pulselength = 1000000;   // 1,000,000 us per second
-  pulselength /= SERVO_FREQ;   // Analog servos run at ~60 Hz updates
-  Serial.print(pulselength); Serial.println(" us per period");
-  pulselength /= 4096;  // 12 bits of resolution
-  Serial.print(pulselength); Serial.println(" us per bit");
-  pulse *= 1000000;  // convert input seconds to us
-  pulse /= pulselength;
-  Serial.println(pulse);
-  pwm.setPWM(n, 0, pulse);
-}
-
-// ***** valores de referência *****
-// centro 1500
-// -90 = 500
-// +90 = 2500
-
-void stand() {
-
-  for(int i = 0; i < 1000; i=i+10){
-    pwm.writeMicroseconds(0, 1500+i);
-    pwm.writeMicroseconds(5, 1500-i);
-    pwm.writeMicroseconds(6, 1500-i);
-    pwm.writeMicroseconds(11, 1500+i);
-  }
-}
-
-void zero() {
   pwm.writeMicroseconds(0, 1500);
   pwm.writeMicroseconds(1, 1500);
   pwm.writeMicroseconds(2, 1500);
@@ -107,91 +34,120 @@ void zero() {
   pwm.writeMicroseconds(13, 1500);
   pwm.writeMicroseconds(14, 1500);
   pwm.writeMicroseconds(15, 1500);
+  
+  delay(10);
+}
+
+void setServoPulse(uint8_t n, double pulse) {
+  double pulselength;
+
+  pulselength = 1000000;
+  pulselength /= SERVO_FREQ;
+  Serial.print(pulselength); Serial.println(" us per period");
+  pulselength /= 4096;
+  Serial.print(pulselength); Serial.println(" us per bit");
+  pulse *= 1000000;
+  pulse /= pulselength;
+  Serial.println(pulse);
+  pwm.setPWM(n, 0, pulse);
+}
+
+// ***** valores de referência *****
+// centro 1500
+// -90 = 500
+// +90 = 2500
+
+void use_servo(int servo, int final_pos) {
+  // Mapeia o servo na posicao do vetor de servos
+  int servo_i = servo;
+  if (servo > 5)
+    servo_i -= 4;
+
+  Serial.print(servo);
+  Serial.print(" - ");
+
+  Serial.print(servo_i);
+  Serial.print(" - ");
+  
+  // Pega posicao atual do servo
+  int initial_pos = position_history[servo_i];
+
+  // Calcula o quanto tem que andar
+  int amnt = final_pos - initial_pos;
+  Serial.print("amnt = ");
+  Serial.print(amnt);
+  Serial.print(" final = ");
+  
+  // Move o servo
+  if (amnt > 0) {
+    for(int i = 0; i < amnt; i += 2) {
+      pwm.writeMicroseconds(servo, (initial_pos + i));
+      delay(1);
+    }
+    position_history[servo_i] = final_pos;
+    Serial.println(position_history[servo_i]);
+    return;
+    
+  } else if (amnt < 0) {
+    amnt = amnt*-1;
+    for(int i = 0; i < amnt; i += 2) {
+      pwm.writeMicroseconds(servo, (initial_pos - i));
+      delay(1);
+    }
+    position_history[servo_i] = final_pos;
+    Serial.println(position_history[servo_i]);
+    return;
+    
+  } else {
+      Serial.println("");
+      return;
+  }
 }
 
 void ponta_de_pe() {
-  pwm.writeMicroseconds(1, 1500 - 350);
-  pwm.writeMicroseconds(0, 1500 - 350);
-  pwm.writeMicroseconds(4, 1500 + 350);
-  pwm.writeMicroseconds(5, 1500 + 350);
-  pwm.writeMicroseconds(11, 1500 + 350);
-  pwm.writeMicroseconds(10, 1500 + 350);
-  pwm.writeMicroseconds(14, 1500 - 350);
-  pwm.writeMicroseconds(15, 1500 - 350);
+  use_servo(0, 1150);
+  use_servo(1, 1150);
+  use_servo(4, 1850);
+  use_servo(5, 1850);
+  use_servo(11, 1850);
+  use_servo(10, 1850);
+  use_servo(14, 1150);
+  use_servo(15, 1150);
 }
 
-void re_spect_walk() {
-  //for(int i=0; i<10; i++) {
-    //pwm.writeMicroseconds(11, 1500 - 200);
-    //pwm.writeMicroseconds(10, 2500);
-    //pwm.writeMicroseconds(4, 2000);
-    //pwm.writeMicroseconds(5, 1500);
-    //delay(2000);
-    //pwm.writeMicroseconds(11, 1500);
-    //pwm.writeMicroseconds(4, 1500);
-    //pwm.writeMicroseconds(14, 2200);
-    //pwm.writeMicroseconds(1, 800);
+void walk() {
+  use_servo(14, 1000);
+  use_servo(11, 2000);
+  use_servo(4, 1600);
+  use_servo(1, 1300);
+  
+  //ponta_de_pe();
+  //use_servo(4, 2000);
+  //use_servo(11, 1650);
+  
+  //use_servo(0, 1300);
+  //use_servo(15, 1700);
 
-    while(1) {
-      ponta_de_pe();
-      delay(500);
-      pwm.writeMicroseconds(11, 1500 + 150);
-      pwm.writeMicroseconds(4, 1500 + 500);
-      pwm.writeMicroseconds(15, 1500 + 200);
-      pwm.writeMicroseconds(0, 1500 - 200);
-      delay(500);
-      ponta_de_pe();
-      delay(500);
-      pwm.writeMicroseconds(14, 1500 + 150);
-      pwm.writeMicroseconds(1, 1500 + 500);
-      pwm.writeMicroseconds(10, 1500 + 200);
-      pwm.writeMicroseconds(5, 1500 - 200);
-      delay(500);
-      ponta_de_pe(); 
-    }
-    
-    
-    //pwm.writeMicroseconds(14, 2200);
-    //pwm.writeMicroseconds(1, 800);
-    //delay(2000);
-    //pwm.writeMicroseconds(4, 2200);
-    //pwm.writeMicroseconds(11, 800);
-//    delay(2000);
-//    pwm.writeMicroseconds(14, 800);
-//    pwm.writeMicroseconds(1, 2200);
-//    delay(2000);
-//    pwm.writeMicroseconds(4, 800);
-//    pwm.writeMicroseconds(11, 2200);
-//    delay(2000);
-//    pwm.writeMicroseconds(14, 1500);
-//    pwm.writeMicroseconds(1, 1500);
-//    pwm.writeMicroseconds(4, 1500);
-//    pwm.writeMicroseconds(11, 1500);
-    //zero();
-  //}
+  //ponta_de_pe();
+  //use_servo(1, 2000);
+  //use_servo(10, 1650);
+  
+  //use_servo(5, 1300);
+  //use_servo(10, 1700);
 }
 
 void loop() {
-
   int controle;
-
+  
   if (Serial.available() > 0) {
-
     controle = Serial.parseInt();
     Serial.println(controle);
-
-    if(controle == 0){
-      zero();
-    }
-    if(controle == 1) {
-      stand();
-    }
-    if(controle == 2) {
-      re_spect_walk();
-    }
-    if(controle == 3) {
+    
+    if(controle == 0) {
       ponta_de_pe();
     }
+    if(controle == 1) {
+      walk();
+    }
   }
-
 }
