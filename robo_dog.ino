@@ -1,7 +1,9 @@
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
-#include "Arduino_FreeRTOS.h"
-#include "task.h"
+#include <math.h>
+
+// L1 = 6.9 cm
+// L2 = 4.7 cm
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
@@ -18,7 +20,7 @@ int position_history[12] = { 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 150
 typedef struct {
   int servo;
   int final_pos;
-}servo_t;
+} servo_t;
 
 void setup() {
   Serial.begin(9600);
@@ -64,10 +66,42 @@ void setServoPulse(uint8_t n, double pulse) {
 // -90 = 500
 // +90 = 2500
 
-void use_servo(void* arg) {
-  int servo = (int)(arg.servo);
-  int final_pos = int(arg[1]);
+
+// x -> distancia
+// y -> altura
+// theta1 -> motor de cima
+// theta2 -> motor de baixo
+void cinematica(int x, int y, int* pos) {
+  // int *pos_motor1, int *pos_motor2
   
+  //float gamma = atan(x/y);
+  //float h = sqrt((x*x)+(y*y));
+  //float beta = acos((h/2)/60);
+  //float alpha = asin((h/2)/60);
+  
+  //float theta1_deg = 10*(gamma + beta)/M_PI;
+  //float theta2_deg = 10*(M_PI - 2*alpha)/M_PI;
+  
+  float theta1_deg = (180/M_PI)*(atan(x/y) + acos(((sqrt((x*x)+(y*y)))/2)/60));
+  float theta2_deg = (180/M_PI)*(M_PI - 2*(asin(((sqrt((x*x)+(y*y)))/2)/60)));
+  Serial.print("ANGULOS -> ");
+  Serial.print(theta1_deg);
+  Serial.print("; ");
+  Serial.println(theta2_deg);
+  
+  int pos_motor1 = (int)((theta1_deg*100/9) + 1500);
+  int pos_motor2 = (int)((theta2_deg*100/9) + 1500);
+  Serial.print("POSICOES -> ");
+  Serial.print(pos_motor1);
+  Serial.print("; ");
+  Serial.println(pos_motor2);
+
+  pos[0] = pos_motor1;
+  pos[1] = pos_motor2;
+}
+
+
+void use_servo(int servo, int final_pos) {
   // Mapeia o servo na posicao do vetor de servos
   int servo_i = servo;
   if (servo > 5)
@@ -96,7 +130,7 @@ void use_servo(void* arg) {
     }
     position_history[servo_i] = final_pos;
     Serial.println(position_history[servo_i]);
-    vTaskDelete(NULL);
+    //vTaskDelete(NULL);
     
   } else if (amnt < 0) {
     amnt = amnt*-1;
@@ -106,33 +140,16 @@ void use_servo(void* arg) {
     }
     position_history[servo_i] = final_pos;
     Serial.println(position_history[servo_i]);
-    vTaskDelete(NULL);
+    //vTaskDelete(NULL);
     
   } else {
       Serial.println("");
-      vTaskDelete(NULL);
+      //vTaskDelete(NULL);
   }
 }
 
 void ponta_de_pe() {
   servo_t servo_aux;
-  
-  /* Patas */
-  servo_aux.servo = 0;
-  servo_aux.final_pos = 1300;
-  xTaskCreate(use_servo, "Servo_0", 2*1024, &servo_aux, 1, NULL);
-
-  servo_aux[0] = 5;
-  servo_aux[1] = 1700;
-  xTaskCreate(use_servo, "Servo_5", 2*1024, (void*)servo_aux, 1, NULL);
-
-  servo_aux[0] = 10;
-  servo_aux[1] = 1700;
-  xTaskCreate(use_servo, "Servo_10", 2*1024, (void*)servo_aux, 1, NULL);
-
-  servo_aux[0] = 15;
-  servo_aux[1] = 1300;
-  xTaskCreate(use_servo, "Servo_15", 2*1024, (void*)servo_aux, 1, NULL);
   
 //  use_servo(0, 1300);
 //  use_servo(5, 1700);
@@ -170,8 +187,19 @@ void walk() {
 //  use_servo(5, position_history[5] + 300);
 //  use_servo(4, position_history[4] + 250);
 //  use_servo(11, position_history[11 - 4] - 300);
+}
 
+void teste() {
+  int* pos = (int*)malloc(sizeof(int)*2);
+  cinematica(30, 80, pos);
   
+  Serial.print("POSICOES2 -> ");
+  Serial.print(pos[0]);
+  Serial.print("; ");
+  Serial.println(pos[1]);
+  
+  use_servo(11, pos[0]);
+  use_servo(10, pos[1]);
 }
 
 void loop() {
@@ -186,6 +214,9 @@ void loop() {
     }
     if(controle == 1) {
       walk();
+    }
+    if(controle == 2) {
+      teste();
     }
   }
 }
