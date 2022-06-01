@@ -71,7 +71,7 @@ void setServoPulse(uint8_t n, double pulse) {
 // y -> altura
 // theta1 -> motor de cima
 // theta2 -> motor de baixo
-void cinematica(int x, int y, int* pos) {
+void cinematica(double x, double y, int* pos) {
   // int *pos_motor1, int *pos_motor2
   
   //float gamma = atan(x/y);
@@ -81,16 +81,21 @@ void cinematica(int x, int y, int* pos) {
   
   //float theta1_deg = 10*(gamma + beta)/M_PI;
   //float theta2_deg = 10*(M_PI - 2*alpha)/M_PI;
-  
-  float theta1_deg = (180/M_PI)*(atan(x/y) + acos(((sqrt((x*x)+(y*y)))/2)/60));
-  float theta2_deg = (180/M_PI)*(M_PI - 2*(asin(((sqrt((x*x)+(y*y)))/2)/60)));
+
+  // L1 = 69
+  // L2 = 47
+
+  double theta2_rad = acos((x*x + y*y - 69*69 - 47*47)/(2*69*47));
+  double theta1_rad = atan(y/x) - atan(47*sin(theta2_rad)/(69 + 47*cos(theta2_rad)));
+  double theta1 = 90 - (theta1_rad * 180/M_PI);
+  double theta2 = 90 - (theta2_rad * 180/M_PI);
   Serial.print("ANGULOS -> ");
-  Serial.print(theta1_deg);
+  Serial.print(theta1);
   Serial.print("; ");
-  Serial.println(theta2_deg);
-  
-  int pos_motor1 = (int)((theta1_deg*100/9) + 1500);
-  int pos_motor2 = (int)((theta2_deg*100/9) + 1500);
+  Serial.println(theta2);
+
+  int pos_motor1 = (int)((theta1 * 100/9) + 1500);
+  int pos_motor2 = (int)((theta2 * 100/9) + 1500);
   Serial.print("POSICOES -> ");
   Serial.print(pos_motor1);
   Serial.print("; ");
@@ -191,12 +196,7 @@ void walk() {
 
 void teste() {
   int* pos = (int*)malloc(sizeof(int)*2);
-  cinematica(30, 80, pos);
-  
-  Serial.print("POSICOES2 -> ");
-  Serial.print(pos[0]);
-  Serial.print("; ");
-  Serial.println(pos[1]);
+  cinematica(20, 70, pos);
   
   use_servo(11, pos[0]);
   use_servo(10, pos[1]);
