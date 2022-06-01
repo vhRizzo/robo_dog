@@ -2,8 +2,8 @@
 #include <Adafruit_PWMServoDriver.h>
 #include <math.h>
 
-// L1 = 6.9 cm
-// L2 = 4.7 cm
+int L1 = 69;
+int L2 = 47;
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
@@ -17,10 +17,6 @@ uint8_t servonum = 15;
 int servo_aux[2];
 
 int position_history[12] = { 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500 };
-typedef struct {
-  int servo;
-  int final_pos;
-} servo_t;
 
 void setup() {
   Serial.begin(9600);
@@ -40,7 +36,7 @@ void setup() {
   pwm.writeMicroseconds(10, 1500);
   pwm.writeMicroseconds(11, 1500);
   pwm.writeMicroseconds(12, 1500);
-  pwm.writeMicroseconds(13, 1500);
+  pwm.writeMicroseconds(13, 1600);
   pwm.writeMicroseconds(14, 1500);
   pwm.writeMicroseconds(15, 1500);
   
@@ -71,7 +67,7 @@ void setServoPulse(uint8_t n, double pulse) {
 // y -> altura
 // theta1 -> motor de cima
 // theta2 -> motor de baixo
-void cinematica(double x, double y, int* pos) {
+void cinematica(double x, double y, int* pos, int servo[]) {
   // int *pos_motor1, int *pos_motor2
   
   //float gamma = atan(x/y);
@@ -85,10 +81,21 @@ void cinematica(double x, double y, int* pos) {
   // L1 = 69
   // L2 = 47
 
-  double theta2_rad = acos((x*x + y*y - 69*69 - 47*47)/(2*69*47));
-  double theta1_rad = atan(y/x) - atan(47*sin(theta2_rad)/(69 + 47*cos(theta2_rad)));
-  double theta1 = 90 - (theta1_rad * 180/M_PI);
-  double theta2 = 90 - (theta2_rad * 180/M_PI);
+  double theta2_rad = acos((pow(x,2) + pow(y,2) - pow(L1,2) - pow(L2,2))/(2*L1*L2));
+  double theta1_rad = atan(y/x) - atan(L2*sin(theta2_rad)/(L1 + L2*cos(theta2_rad)));
+  
+  double theta1;
+  double theta2;
+  
+  if(servo[0] == 1 || servo[0] == 14)
+    theta1 = -1*(90 - (theta1_rad * 180/M_PI));
+  else
+    theta1 = 90 - (theta1_rad * 180/M_PI);
+
+  if (servo[1] == 0 || servo[1] == 15)
+    theta2 = -1*(90 - (theta2_rad * 180/M_PI));
+  else
+    theta2 = 90 - (theta2_rad * 180/M_PI);
   Serial.print("ANGULOS -> ");
   Serial.print(theta1);
   Serial.print("; ");
@@ -154,12 +161,37 @@ void use_servo(int servo, int final_pos) {
 }
 
 void ponta_de_pe() {
-  servo_t servo_aux;
+
+  int* pos = (int*)malloc(sizeof(int)*2);
+  int servo[2];
+
+  servo[0] = 11;
+  servo[1] = 10;
+  cinematica(20, 90, pos, servo);
   
-//  use_servo(0, 1300);
-//  use_servo(5, 1700);
-//  use_servo(10, 1700);
-//  use_servo(15, 1300);
+  use_servo(servo[0], pos[0]);
+  use_servo(servo[1], pos[1]);
+
+  servo[0] = 1;
+  servo[1] = 0;
+  cinematica(20, 90, pos, servo);
+
+  use_servo(servo[0], pos[0]);
+  use_servo(servo[1], pos[1]);
+
+  servo[0] = 4;
+  servo[1] = 5;
+  cinematica(20, 90, pos, servo);
+
+  use_servo(servo[0], pos[0]);
+  use_servo(servo[1], pos[1]);
+
+  servo[0] = 14;
+  servo[1] = 15;
+  cinematica(20, 90, pos, servo);
+
+  use_servo(servo[0], pos[0]);
+  use_servo(servo[1], pos[1]);
   
   /* Pernas */
 //  use_servo(1, 1250);
@@ -194,13 +226,15 @@ void walk() {
 //  use_servo(11, position_history[11 - 4] - 300);
 }
 
-void teste() {
-  int* pos = (int*)malloc(sizeof(int)*2);
-  cinematica(20, 70, pos);
-  
-  use_servo(11, pos[0]);
-  use_servo(10, pos[1]);
-}
+//void teste() {
+//  int* pos = (int*)malloc(sizeof(int)*2);
+//  cinematica(20, 70, pos);
+//  
+//  use_servo(11, pos[0]);
+//  use_servo(10, pos[1]);
+//  
+//  free(pos);
+//}
 
 void loop() {
   int controle;
@@ -215,8 +249,8 @@ void loop() {
     if(controle == 1) {
       walk();
     }
-    if(controle == 2) {
-      teste();
-    }
+//    if(controle == 2) {
+//      teste();
+//    }
   }
 }
