@@ -1,7 +1,5 @@
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
-#include <Arduino_FreeRTOS.h>
-#include <task.h>
 #include <math.h>
 
 int L1 = 69;
@@ -18,27 +16,14 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 uint8_t servonum = 15;
 int servo_aux[2];
 
-int position_history[12] = { 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500 };
-
-void use_servo_0 ( void* arg );
-void use_servo_1 ( void* arg );
-void use_servo_2 ( void* arg );
-void use_servo_3 ( void* arg );
-void use_servo_4 ( void* arg );
-void use_servo_5 ( void* arg );
-void use_servo_10 ( void* arg );
-void use_servo_11 ( void* arg );
-void use_servo_12 ( void* arg );
-void use_servo_13 ( void* arg );
-void use_servo_14 ( void* arg );
-void use_servo_15 ( void* arg );
+int position_history[12] = { 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1400, 1500, 1500, 1500 };
 
 void setup() {
   Serial.begin(9600);
 
   pwm.begin();
 
-  pwm.setOscillatorFrequency(25200000);
+  pwm.setOscillatorFrequency(25700000);
   pwm.setPWMFreq(SERVO_FREQ);
 
   pwm.writeMicroseconds(0, 1500);
@@ -49,14 +34,12 @@ void setup() {
   pwm.writeMicroseconds(5, 1500);
   pwm.writeMicroseconds(10, 1500);
   pwm.writeMicroseconds(11, 1500);
-  pwm.writeMicroseconds(12, 1500);
+  pwm.writeMicroseconds(12, 1400);
   pwm.writeMicroseconds(13, 1500);
   pwm.writeMicroseconds(14, 1500);
   pwm.writeMicroseconds(15, 1500);
 
   Serial.println("8 channel Servo test!");
-  
-  xTaskCreate(loop_task, "Loop_Task", 10 * 1024, NULL, 25, NULL);
 }
 
 void setServoPulse(uint8_t n, double pulse) {
@@ -116,380 +99,120 @@ void cinematica(double x, double y, int* pos, int servo[])
   pos[1] = pos_motor2;
 }
 
-void ponta_de_pe()
-{
-  int* pos = (int*)malloc(sizeof(int) * 2);
-  int servo[2];
-
-  servo[0] = 11;
-  servo[1] = 10;
-  cinematica(20, 90, pos, servo);
-
-  xTaskCreate (use_servo_11, "Use_Servo_11", 4 * 1024, (void*)pos[0], 0, NULL);
-  xTaskCreate (use_servo_10, "Use_Servo_10", 4 * 1024, (void*)pos[1], 0, NULL);
-
-  servo[0] = 1;
-  servo[1] = 0;
-  cinematica(20, 90, pos, servo);
-
-  xTaskCreate (use_servo_1, "Use_Servo_1", 4 * 1024, (void*)pos[0], 0, NULL);
-  xTaskCreate (use_servo_0, "Use_Servo_0", 4 * 1024, (void*)pos[1], 0, NULL);
-
-  servo[0] = 4;
-  servo[1] = 5;
-  cinematica(20, 90, pos, servo);
-
-  xTaskCreate (use_servo_4, "Use_Servo_4", 4 * 1024, (void*)pos[0], 0, NULL);
-  xTaskCreate (use_servo_5, "Use_Servo_5", 4 * 1024, (void*)pos[1], 0, NULL);
-
-  servo[0] = 14;
-  servo[1] = 15;
-  cinematica(20, 90, pos, servo);
-
-  xTaskCreate (use_servo_14, "Use_Servo_14", 4 * 1024, (void*)pos[0], 0, NULL);
-  xTaskCreate (use_servo_15, "Use_Servo_15", 4 * 1024, (void*)pos[1], 0, NULL);
-}
-
 void walk() {
-  /* Primeiro passo */
-  //  use_servo(0, position_history[0] - 300);
-  //  use_servo(15, position_history[15 - 4] - 300);
-  //  use_servo(5, position_history[5] - 200);
-  //  use_servo(10, position_history[10 - 4] + 200);
-  //
-  //  use_servo(11, position_history[11 - 4] + 300);
-  //  use_servo(4, position_history[4] - 250);
-  //
-  //  use_servo(10, position_history[10 - 4] - 200);
-  //  use_servo(5, position_history[5] + 200);
-  //
-  //  use_servo(0, position_history[0] + 300);
-  //  use_servo(15, position_history[15 - 4] + 300);
-  //
-  //  /* Recentraliza */
-  //  use_servo(0, position_history[0] + 300);
-  //  use_servo(15, position_history[15 - 4] + 300);
-  //
-  //  use_servo(5, position_history[5] + 300);
-  //  use_servo(4, position_history[4] + 250);
-  //  use_servo(11, position_history[11 - 4] - 300);
+  
 }
 
-void loop_task ( void* arg ) {
+void use_servo_4 ( int servo[8], int final_pos[8] )
+{
+  // Mapeia o servo na posicao do vetor de servos
+  int servo_i[8];
+  for(int i = 0; i < 8; i++){
+    if (servo[i] > 5)
+      servo_i[i] = servo[i] - 4;
+    else 
+      servo_i[i] = servo[i];
+  }
+
+  // Pega posicao atual do servo
+  int initial_pos[8];
+  for(int i = 0; i < 8; i++)
+    initial_pos[i] = position_history[servo_i[i]];
+
+  // Calcula o quanto tem que andar
+  int amnt[8];
+  int amnt_aux[8];
+  int max_amnt = 0;
+  for(int i = 0; i < 8; i++) {
+    amnt[i] = final_pos[i] - initial_pos[i];
+    amnt_aux[i] = abs(amnt[i]);
+    if(amnt_aux[i] >= max_amnt)
+      max_amnt = amnt_aux[i];
+  }
+  // Move o servo
+  int pos_step = 10;
+  for (int i = 0; i < max_amnt; i += pos_step)
+  {
+    for(int j = 0; j < 8; j++)
+    {
+      if (amnt[j] > 0) {
+        if (amnt_aux[j] > 0) {
+          if(amnt_aux[j] >= pos_step) {
+            pwm.writeMicroseconds(servo[j], (initial_pos[j] + i));
+            amnt_aux[j] -= pos_step;
+          }
+          else {
+            pwm.writeMicroseconds(servo[j], final_pos[j]);
+            amnt_aux[j] = 0;
+          }
+        }
+      } else if (amnt[j] < 0) {
+        if (amnt_aux[j] > 0) {
+          if(amnt_aux[j] >= pos_step) {
+            pwm.writeMicroseconds(servo[j], (initial_pos[j] - i));
+            amnt_aux[j] -= pos_step;
+          }
+          else {
+            pwm.writeMicroseconds(servo[j], final_pos[j]);
+            amnt_aux[j] = 0;
+          }
+        }
+      }
+      Serial.print(servo[j]);
+      Serial.print(" = ");
+      Serial.println(amnt_aux[j]);
+    }
+  }
+}
+
+void ponta_de_pe ()
+{
+  int servo[8];
+  int pos[8];
+  int servo_aux[2];
+  int* pos_aux = (int*) malloc(2 * sizeof(int));
+
+  servo[0] = 0;
+  servo[1] = 1;
+  servo[2] = 4;
+  servo[3] = 5;
+  servo[4] = 10;
+  servo[5] = 11;
+  servo[6] = 14;
+  servo[7] = 15;
+
+  servo_aux[0] = 1;
+  servo_aux[1] = 0;
+  cinematica(30, 90, pos_aux, servo_aux);
+  
+  pos[0] = pos_aux[0];                  // servo 0 - pata   - 0
+  pos[1] = pos_aux[1];                  // servo 1 - perna  - 0
+  pos[2] = 1500 + (1500 - pos_aux[1]);  // servo 4 - perna  - 1
+  pos[3] = 1500 + (1500 - pos_aux[0]);  // servo 5 - pata   - 1
+
+  servo_aux[0] = 10;
+  servo_aux[1] = 11;
+  cinematica(30, 90, pos_aux, servo_aux);
+  pos[4] = pos_aux[0];                  // servo 10 - pata  - 0
+  pos[5] = pos_aux[1];                  // servo 11 - perna - 0
+  pos[6] = 1500 + (1500 - pos_aux[1]);  // servo 14 - perna - 1
+  pos[7] = 1500 + (1500 - pos_aux[0]);  // servo 15 - pata  - 1
+
+  use_servo_4(servo, pos);
+}
+
+void loop() { 
   int controle;
   while (true)
   {
-    if (Serial.available() > 0) {
+    if (Serial.available() > 0)
+    {
       controle = Serial.parseInt();
       Serial.println(controle);
-  
-      if (controle == 0) {
+      if (controle == 0)
         ponta_de_pe();
-      }
-      if (controle == 1) {
+      if (controle == 1)
         walk();
-      }
-      //    if(controle == 2) {
-      //      teste();
-      //    }
     }
-  }
-}
-
-void loop() { }
-
-void use_servo_0 ( void* arg ) {
-  int servo = 0;
-  int final_pos = (int)arg;
-  
-  // Mapeia o servo na posicao do vetor de servos
-  int servo_i = servo;
-  if (servo > 5)
-    servo_i -= 4;
-
-  // Pega posicao atual do servo
-  int initial_pos = position_history[servo_i];
-
-  // Calcula o quanto tem que andar
-  int amnt = 0;
-
-  // Move o servo
-  if (amnt > 0) {
-    for (int i = 0; i < amnt; i += 5) {
-      pwm.writeMicroseconds(servo, (initial_pos + i));
-      vTaskDelay(1/portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-
-  } else if (amnt < 0) {
-    amnt = amnt * -1;
-    for (int i = 0; i < amnt; i += 5) {
-      pwm.writeMicroseconds(servo, (initial_pos - i));
-      vTaskDelay(1/portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-
-  } else {
-    Serial.println();
-    vTaskDelete(NULL);
-  }
-}
-
-void use_servo_1 ( void* arg ) {
-  int servo = 1;
-  int final_pos = (int)arg;
-  
-  // Mapeia o servo na posicao do vetor de servos
-  int servo_i = servo;
-  if (servo > 5)
-    servo_i -= 4;
-
-  // Pega posicao atual do servo
-  int initial_pos = position_history[servo_i];
-
-  // Calcula o quanto tem que andar
-  int amnt = 0;
-
-  // Move o servo
-  if (amnt > 0) {
-    for (int i = 0; i < amnt; i += 5) {
-      pwm.writeMicroseconds(servo, (initial_pos + i));
-      vTaskDelay(1/portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-
-  } else if (amnt < 0) {
-    amnt = amnt * -1;
-    for (int i = 0; i < amnt; i += 5) {
-      pwm.writeMicroseconds(servo, (initial_pos - i));
-      vTaskDelay(1/portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-
-  } else {
-    Serial.println();
-    vTaskDelete(NULL);
-  }
-}
-
-void use_servo_4 ( void* arg ) {
-  int servo = 4;
-  int final_pos = (int)arg;
-  
-  // Mapeia o servo na posicao do vetor de servos
-  int servo_i = servo;
-  if (servo > 5)
-    servo_i -= 4;
-
-  // Pega posicao atual do servo
-  int initial_pos = position_history[servo_i];
-
-  // Calcula o quanto tem que andar
-  int amnt = 0;
-
-  // Move o servo
-  if (amnt > 0) {
-    for (int i = 0; i < amnt; i += 5) {
-      pwm.writeMicroseconds(servo, (initial_pos + i));
-      vTaskDelay(1/portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-
-  } else if (amnt < 0) {
-    amnt = amnt * -1;
-    for (int i = 0; i < amnt; i += 5) {
-      pwm.writeMicroseconds(servo, (initial_pos - i));
-      vTaskDelay(1/portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-
-  } else {
-    Serial.println();
-    vTaskDelete(NULL);
-  }
-}
-
-void use_servo_5 ( void* arg ) {
-  int servo = 5;
-  int final_pos = (int)arg;
-  
-  // Mapeia o servo na posicao do vetor de servos
-  int servo_i = servo;
-  if (servo > 5)
-    servo_i -= 4;
-
-  // Pega posicao atual do servo
-  int initial_pos = position_history[servo_i];
-
-  // Calcula o quanto tem que andar
-  int amnt = 0;
-
-  // Move o servo
-  if (amnt > 0) {
-    for (int i = 0; i < amnt; i += 5) {
-      pwm.writeMicroseconds(servo, (initial_pos + i));
-      vTaskDelay(1/portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-
-  } else if (amnt < 0) {
-    amnt = amnt * -1;
-    for (int i = 0; i < amnt; i += 5) {
-      pwm.writeMicroseconds(servo, (initial_pos - i));
-      vTaskDelay(1/portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-
-  } else {
-    Serial.println();
-    vTaskDelete(NULL);
-  }
-}
-
-void use_servo_10 ( void* arg ) {
-  int servo = 10;
-  int final_pos = (int)arg;
-
-  // Mapeia o servo na posicao do vetor de servos
-  int servo_i = servo;
-  if (servo > 5)
-    servo_i -= 4;
-
-  // Pega posicao atual do servo
-  int initial_pos = position_history[servo_i];
-
-  // Calcula o quanto tem que andar
-  int amnt = 0;
-
-  // Move o servo
-  if (amnt > 0) {
-    for (int i = 0; i < amnt; i += 5) {
-      pwm.writeMicroseconds(servo, (initial_pos + i));
-      vTaskDelay(1/portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-
-  } else if (amnt < 0) {
-    amnt = amnt * -1;
-    for (int i = 0; i < amnt; i += 5) {
-      pwm.writeMicroseconds(servo, (initial_pos - i));
-      vTaskDelay(1/portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-
-  } else {
-    Serial.println();
-    vTaskDelete(NULL);
-  }
-}
-
-void use_servo_11 ( void* arg ) {
-  int servo = 11;
-  int final_pos = (int)arg;
-  
-  // Mapeia o servo na posicao do vetor de servos
-  int servo_i = servo;
-  if (servo > 5)
-    servo_i -= 4;
-
-  // Pega posicao atual do servo
-  int initial_pos = position_history[servo_i];
-
-  // Calcula o quanto tem que andar
-  int amnt = 0;
-
-  // Move o servo
-  if (amnt > 0) {
-    for (int i = 0; i < amnt; i += 5) {
-      pwm.writeMicroseconds(servo, (initial_pos + i));
-      vTaskDelay(1/portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-
-  } else if (amnt < 0) {
-    amnt = amnt * -1;
-    for (int i = 0; i < amnt; i += 5) {
-      pwm.writeMicroseconds(servo, (initial_pos - i));
-      vTaskDelay(1/portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-
-  } else {
-    Serial.println();
-    vTaskDelete(NULL);
-  }
-}
-
-void use_servo_14 ( void* arg ) {
-  int servo = 14;
-  int final_pos = (int)arg;
-  
-  // Mapeia o servo na posicao do vetor de servos
-  int servo_i = servo;
-  if (servo > 5)
-    servo_i -= 4;
-
-  // Pega posicao atual do servo
-  int initial_pos = position_history[servo_i];
-
-  // Calcula o quanto tem que andar
-  int amnt = 0;
-
-  // Move o servo
-  if (amnt > 0) {
-    for (int i = 0; i < amnt; i += 5) {
-      pwm.writeMicroseconds(servo, (initial_pos + i));
-      vTaskDelay(1/portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-
-  } else if (amnt < 0) {
-    amnt = amnt * -1;
-    for (int i = 0; i < amnt; i += 5) {
-      pwm.writeMicroseconds(servo, (initial_pos - i));
-      vTaskDelay(1/portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-
-  } else {
-    Serial.println();
-    vTaskDelete(NULL);
-  }
-}
-
-void use_servo_15 ( void* arg ) {
-  int servo = 15;
-  int final_pos = (int)arg;
-  
-  // Mapeia o servo na posicao do vetor de servos
-  int servo_i = servo;
-  if (servo > 5)
-    servo_i -= 4;
-
-  // Pega posicao atual do servo
-  int initial_pos = position_history[servo_i];
-
-  // Calcula o quanto tem que andar
-  int amnt = 0;
-
-  // Move o servo
-  if (amnt > 0) {
-    for (int i = 0; i < amnt; i += 5) {
-      pwm.writeMicroseconds(servo, (initial_pos + i));
-      vTaskDelay(1/portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-
-  } else if (amnt < 0) {
-    amnt = amnt * -1;
-    for (int i = 0; i < amnt; i += 5) {
-      pwm.writeMicroseconds(servo, (initial_pos - i));
-      vTaskDelay(1/portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-
-  } else {
-    Serial.println();
-    vTaskDelete(NULL);
   }
 }
