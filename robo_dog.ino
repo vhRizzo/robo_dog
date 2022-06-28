@@ -6,6 +6,7 @@ int L1 = 69;
 int L2 = 47;
 int x_ini = -10;
 int y_ini = 85;
+int pos_step = 2;
 
 void setServoPulse(uint8_t n, double pulse);
 void cinematica(double x, double y, int* pos, int servo[]);
@@ -142,7 +143,6 @@ void use_servo_4 ( int servo[8], int final_pos[8] )
       max_amnt = amnt_aux[i];
   }
   // Move o servo
-  int pos_step = 1;
   for (int i = 0; i < max_amnt; i += pos_step)
   {
     for(int j = 0; j < 8; j++)
@@ -176,6 +176,69 @@ void use_servo_4 ( int servo[8], int final_pos[8] )
     }
   }
   for (int i = 0; i < 8; i++)
+    position_history[servo_i[i]] = final_pos[i];
+}
+
+void use_servo_1 ( int servo[2], int final_pos[2] )
+{
+  // Mapeia o servo na posicao do vetor de servos
+  int servo_i[2];
+  for(int i = 0; i < 2; i++){
+    if (servo[i] > 5)
+      servo_i[i] = servo[i] - 4;
+    else 
+      servo_i[i] = servo[i];
+  }
+
+  // Pega posicao atual do servo
+  int initial_pos[2];
+  for(int i = 0; i < 2; i++)
+    initial_pos[i] = position_history[servo_i[i]];
+
+  // Calcula o quanto tem que andar
+  int amnt[2];
+  int amnt_aux[2];
+  int max_amnt = 0;
+  for(int i = 0; i < 2; i++) {
+    amnt[i] = final_pos[i] - initial_pos[i];
+    amnt_aux[i] = abs(amnt[i]);
+    if(amnt_aux[i] >= max_amnt)
+      max_amnt = amnt_aux[i];
+  }
+  // Move o servo
+  for (int i = 0; i < max_amnt; i += pos_step)
+  {
+    for(int j = 0; j < 2; j++)
+    {
+      if (amnt[j] > 0) {
+        if (amnt_aux[j] > 0) {
+          if(amnt_aux[j] >= pos_step) {
+            pwm.writeMicroseconds(servo[j], (initial_pos[j] + i));
+            amnt_aux[j] -= pos_step;
+          }
+          else {
+            pwm.writeMicroseconds(servo[j], final_pos[j]);
+            amnt_aux[j] = 0;
+          }
+        }
+      } else if (amnt[j] < 0) {
+        if (amnt_aux[j] > 0) {
+          if(amnt_aux[j] >= pos_step) {
+            pwm.writeMicroseconds(servo[j], (initial_pos[j] - i));
+            amnt_aux[j] -= pos_step;
+          }
+          else {
+            pwm.writeMicroseconds(servo[j], final_pos[j]);
+            amnt_aux[j] = 0;
+          }
+        }
+      }
+//      Serial.print(servo[j]);
+//      Serial.print(" = ");
+//      Serial.println(amnt_aux[j]);
+    }
+  }
+  for (int i = 0; i < 2; i++)
     position_history[servo_i[i]] = final_pos[i];
 }
 
@@ -223,48 +286,90 @@ void ponta_de_pe ()
 }
 
 void walk() {
-  int servo[8];
-  int pos[8];
+  int servo_4[8];
+  int pos_4[8];
   int servo_aux[2];
   int* pos_aux = (int*) malloc(2 * sizeof(int));
+  int servo_1[2];
+  int pos_1[2];
 
-  servo[0] = 0;
-  servo[1] = 1;
-  servo[2] = 4;
-  servo[3] = 5;
-  servo[4] = 10;
-  servo[5] = 11;
-  servo[6] = 14;
-  servo[7] = 15;
+  servo_4[0] = 0;
+  servo_4[1] = 1;
+  servo_4[2] = 4;
+  servo_4[3] = 5;
+  servo_4[4] = 10;
+  servo_4[5] = 11;
+  servo_4[6] = 14;
+  servo_4[7] = 15;
+
+  int x_ref = 30;
+  int x_d = 0;
+  int y_d = 50;
+
+  for(int j = 0; j < 10; j++) {
+    for (int i = 0; i < 4; i++) {
+      if (i == 0) {
+        servo_aux[0] = 1;
+        servo_aux[1] = 0;
+        servo_1[0] = 0;
+        servo_1[1] = 1;
+      } else if (i == 1) {
+        servo_aux[0] = 4;
+        servo_aux[1] = 5;
+        servo_1[0] = 4;
+        servo_1[1] = 5;
+      } else if (i == 2) {
+        servo_aux[0] = 11;
+        servo_aux[1] = 10;
+        servo_1[0] = 10;
+        servo_1[1] = 11;
+      } else {
+        servo_aux[0] = 14;
+        servo_aux[1] = 15;
+        servo_1[0] = 14;
+        servo_1[1] = 15;
+      }
   
-  int shift = 15;
-  
-  for (int i = 0; i < shift; i++) {
-    servo_aux[0] = 1;
-    servo_aux[1] = 0;
-    cinematica(x_ini + shift, y_ini + shift, pos_aux, servo_aux); 
-    pos[0] = pos_aux[0];                  // servo 0 - pata   - 0
-    pos[1] = pos_aux[1];                  // servo 1 - perna  - 0
-  
-    servo_aux[0] = 4;
-    servo_aux[1] = 5;
-    cinematica(x_ini - shift, y_ini - shift, pos_aux, servo_aux);
-    pos[2] = pos_aux[1];                  // servo 4 - perna  - 1
-    pos[3] = pos_aux[0];                  // servo 5 - pata   - 1
-  
-    servo_aux[0] = 11;
-    servo_aux[1] = 10;
-    cinematica(x_ini - shift, y_ini - shift, pos_aux, servo_aux);
-    pos[4] = pos_aux[0];                  // servo 10 - pata  - 0
-    pos[5] = pos_aux[1];                  // servo 11 - perna - 0
-  
-    servo_aux[0] = 14;
-    servo_aux[1] = 15;
-    cinematica(x_ini + shift, y_ini + shift, pos_aux, servo_aux);
-    pos[6] = pos_aux[1];                  // servo 14 - perna - 1
-    pos[7] = pos_aux[0];                  // servo 15 - pata  - 1
-  
-    use_servo_4(servo, pos);
+      if (servo_1[0] >= 10)
+        x_d = -1 * x_ref;
+      else
+        x_d = x_ref;
+      
+      cinematica(x_ini, y_ini - y_d, pos_aux, servo_aux);
+      if (i % 2 != 0) {
+        pos_1[0] = pos_aux[1];
+        pos_1[1] = pos_aux[0];
+      } else {
+        pos_1[0] = pos_aux[0];
+        pos_1[1] = pos_aux[1];
+      }
+      use_servo_1(servo_1, pos_1);
+      delay(10);
+    
+      cinematica(x_ini + x_d, y_ini - y_d, pos_aux, servo_aux); 
+      if (i % 2 != 0) {
+        pos_1[0] = pos_aux[1];
+        pos_1[1] = pos_aux[0];
+      } else {
+        pos_1[0] = pos_aux[0];
+        pos_1[1] = pos_aux[1];
+      }
+      use_servo_1(servo_1, pos_1);
+      delay(10);
+    
+      cinematica(x_ini + x_d, y_ini, pos_aux, servo_aux);
+      if (i % 2 != 0) {
+        pos_1[0] = pos_aux[1];
+        pos_1[1] = pos_aux[0];
+      } else {
+        pos_1[0] = pos_aux[0];
+        pos_1[1] = pos_aux[1];
+      }
+      use_servo_1(servo_1, pos_1);
+      delay(10);
+    }
+    ponta_de_pe();
+    delay(10);
   }
 }
 
@@ -277,6 +382,8 @@ void loop() {
       controle = Serial.parseInt();
       Serial.println(controle);
       if (controle == 0)
+        ponta_de_pe();
+      if (controle == 1)
         walk();
     }
   }
