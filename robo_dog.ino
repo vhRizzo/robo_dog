@@ -520,7 +520,8 @@ void levanta() {
 
   use_servo_4(servo, pos);
 
-  // Semelhante a finge_de_morto(), 
+  // Semelhante a finge_de_morto(), os ombros de ambas as laterais (garantindo com que ele consiga se levantar independente do lado que tiver caido) irao
+  // se deslocar levemente em sentido interno para que o robo caia sobre sua barriga
   servo_aux[0] = 2;
   servo_aux[1] = 12;
   int pos_2[2] = {1500-250,1500+250};
@@ -531,6 +532,8 @@ void levanta() {
   pos_2[1] = 1500-250;
   delay(500);
   use_servo_1(servo_aux,pos_2);
+  
+  // Em seguida retorna os ombros para suas posicoes padrao
   pos_2[0] = 1500;
   pos_2[1] = 1500;
   use_servo_1(servo_aux,pos_2);
@@ -539,10 +542,16 @@ void levanta() {
   pos[1] = 1400;
   use_servo_1(servo_aux,pos_2);
   
+  // E retorna todas as patas para suas posicoes padrao
   ponta_de_pe();
 }
 
+/**
+ * Faz com que o robo se estique no chao.
+ * @see levanta().
+ */
 void deita() {
+  // Da mesma forma que foi feita na funcao levanta(), o robo ira esticar todas as suas pernas no chao
   int servo[8];
   int pos[8];
   int servo_aux[2];
@@ -584,11 +593,16 @@ void deita() {
   use_servo_4(servo, pos);
 }
 
+/**
+ * Faz com que o robo se posicione de uma forma semelhante a um cachorro sentado.
+ */
 void senta() {
+  // Desloca as coxas traseiras para dentro
   int servo[2] = {11,14};
   int pos[2] = {1500-750,1500+750};
   use_servo_1(servo,pos);
 
+  // Estica levemente as patas frontais
   servo[0] = 0;
   servo[1] = 1;
   pos[0] = 1500-300;
@@ -602,6 +616,7 @@ void senta() {
 }
 
 void loop() { 
+  // Faz a leitura do serial do Arduino, onde o usuario podera selecionar qual acao o robo devera realizar
   int controle;
   while (true)
   {
