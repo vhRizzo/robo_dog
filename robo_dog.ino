@@ -5,14 +5,18 @@
 int L1 = 69;
 int L2 = 47;
 int x_ini = -10;
-int y_ini = 85;
-int pos_step = 2;
+int y_ini = 100;
+int pos_step = 1;
 
 void setServoPulse(uint8_t n, double pulse);
 void cinematica(double x, double y, int* pos, int servo[]);
 void use_servo_4( int servo[8], int final_pos[8] );
 void ponta_de_pe();
 void walk();
+void senta();
+void finge_de_morto();
+void levanta();
+void deita();
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
@@ -25,7 +29,7 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 uint8_t servonum = 15;
 int servo_aux[2];
 
-int position_history[12] = { 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500 };
+int position_history[12] = { 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1400, 1500, 1500, 1500 };
 
 void setup() {
   Serial.begin(9600);
@@ -43,13 +47,14 @@ void setup() {
   pwm.writeMicroseconds(5, 1500);
   pwm.writeMicroseconds(10, 1500);
   pwm.writeMicroseconds(11, 1500);
-  pwm.writeMicroseconds(12, 1500);
+  pwm.writeMicroseconds(12, 1400);
   pwm.writeMicroseconds(13, 1500);
   pwm.writeMicroseconds(14, 1500);
   pwm.writeMicroseconds(15, 1500);
 
   Serial.println("8 channel Servo test!");
   ponta_de_pe();
+//  walk();
 }
 
 void setServoPulse(uint8_t n, double pulse) {
@@ -304,9 +309,9 @@ void walk() {
 
   int x_ref = 30;
   int x_d = 0;
-  int y_d = 50;
+  int y_d = 30;
 
-  for(int j = 0; j < 10; j++) {
+  for( ; ; ) {
     for (int i = 0; i < 4; i++) {
       if (i == 0) {
         servo_aux[0] = 1;
@@ -377,8 +382,9 @@ void finge_de_morto() {
   int servo[2] = {2,12};
   int pos[2] = {1500 - 750,1500 + 750};
   use_servo_1(servo, pos);
+  delay(500);
   pos[0] = 1500;
-  pos[1] = 1500;
+  pos[1] = 1400;
   use_servo_1(servo, pos);
 }
 
@@ -431,15 +437,59 @@ void levanta() {
   servo_aux[1] = 13;
   pos_2[0] = 1500+250;
   pos_2[1] = 1500-250;
+  delay(500);
   use_servo_1(servo_aux,pos_2);
   pos_2[0] = 1500;
   pos_2[1] = 1500;
   use_servo_1(servo_aux,pos_2);
   servo_aux[0] = 2;
   servo_aux[1] = 12;
+  pos[1] = 1400;
   use_servo_1(servo_aux,pos_2);
   
   ponta_de_pe();
+}
+
+void deita() {
+  int servo[8];
+  int pos[8];
+  int servo_aux[2];
+  int* pos_aux = (int*) malloc(2 * sizeof(int));
+
+  servo[0] = 0;
+  servo[1] = 1;
+  servo[2] = 4;
+  servo[3] = 5;
+  servo[4] = 10;
+  servo[5] = 11;
+  servo[6] = 14;
+  servo[7] = 15;
+
+  servo_aux[0] = 1;
+  servo_aux[1] = 0;
+  cinematica(L1+L2, 0, pos_aux, servo_aux); 
+  pos[0] = pos_aux[0];                  // servo 0 - pata   - 0
+  pos[1] = pos_aux[1];                  // servo 1 - perna  - 0
+
+  servo_aux[0] = 4;
+  servo_aux[1] = 5;
+  cinematica(L1+L2, 0, pos_aux, servo_aux);
+  pos[2] = pos_aux[1];                  // servo 4 - perna  - 1
+  pos[3] = pos_aux[0];                  // servo 5 - pata   - 1
+
+  servo_aux[0] = 11;
+  servo_aux[1] = 10;
+  cinematica(L1+L2, 0, pos_aux, servo_aux);
+  pos[4] = pos_aux[0];                  // servo 10 - pata  - 0
+  pos[5] = pos_aux[1];                  // servo 11 - perna - 0
+
+  servo_aux[0] = 14;
+  servo_aux[1] = 15;
+  cinematica(L1+L2, 0, pos_aux, servo_aux);
+  pos[6] = pos_aux[1];                  // servo 14 - perna - 1
+  pos[7] = pos_aux[0];                  // servo 15 - pata  - 1
+
+  use_servo_4(servo, pos);
 }
 
 void senta() {
@@ -477,6 +527,8 @@ void loop() {
         finge_de_morto();
       if (controle == 4)
         levanta();
+      if (controle == 5)
+        deita();
     }
   }
 }
